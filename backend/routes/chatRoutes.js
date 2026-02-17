@@ -77,7 +77,9 @@ router.post('/', async (req, res) => {
         let conversation;
         let chatHistory = [];
 
-        if (conversationId) {
+        const isDbConnected = mongoose.connection.readyState === 1;
+
+        if (isDbConnected && conversationId) {
             conversation = await Conversation.findById(conversationId);
             if (!conversation) return res.status(404).json({ error: 'Chat not found' });
 
@@ -87,14 +89,16 @@ router.post('/', async (req, res) => {
                     role: m.role === 'user' ? 'user' : 'model',
                     parts: [{ text: m.content }]
                 }));
-        } else {
+        } else if (isDbConnected) {
             conversation = new Conversation({
                 title: message.substring(0, 30) + (message.length > 30 ? '...' : ''),
                 messages: []
             });
         }
 
-        conversation.messages.push({ role: 'user', content: message });
+        if (isDbConnected) {
+            conversation.messages.push({ role: 'user', content: message });
+        }
 
         // Call External intelligence
         const chat = model.startChat({
@@ -103,17 +107,19 @@ router.post('/', async (req, res) => {
         });
 
         console.log("-> Calling Gemini API...");
-        const result = await chat.sendMessage(message); // System prompt is already in the context or instruction
+        const result = await chat.sendMessage(message);
         const aiReply = result.response.text();
         console.log("-> Gemini responded successfully.");
 
-        conversation.messages.push({ role: 'assistant', content: aiReply });
-        await conversation.save();
+        if (isDbConnected) {
+            conversation.messages.push({ role: 'assistant', content: aiReply });
+            await conversation.save();
+        }
 
         res.json({
             reply: aiReply,
-            conversationId: conversation._id,
-            conversationTitle: conversation.title
+            conversationId: isDbConnected ? conversation._id : 'offline-session',
+            conversationTitle: isDbConnected ? conversation.title : 'Offline Chat'
         });
 
     } catch (error) {
