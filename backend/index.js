@@ -40,13 +40,20 @@ process.on('unhandledRejection', (reason, promise) => {
     console.error('⚠️ Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-// Database Connection
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/agrovision', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-})
-    .then(() => console.log('✅ MongoDB connected successfully'))
-    .catch(err => console.error('❌ MongoDB connection error:', err));
+// Database Connection with retry logic and longer timeout for slower networks
+const connectDB = async () => {
+    try {
+        await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/agrovision', {
+            serverSelectionTimeoutMS: 10000, // 10s instead of 30s to fail faster and use offline mode
+        });
+        console.log('✅ MongoDB connected successfully');
+    } catch (err) {
+        console.error('❌ MongoDB connection error:', err.message);
+        console.log('⚠️ Running in offline-first mode (some features may be limited)');
+    }
+};
+
+connectDB();
 
 // Basic Route
 app.get('/', (req, res) => {

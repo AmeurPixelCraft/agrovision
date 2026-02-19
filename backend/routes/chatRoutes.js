@@ -1,13 +1,14 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const Conversation = require('../models/Conversation');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 // Initialize Gemini
-// We use gemini-1.5-flash which is widely available and stable.
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Note: SDK 0.24.x usually works with v1 internally, but if v1beta fails, we stick to standard strings.
 const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
+    model: "gemini-pro-latest",
     systemInstruction: `
 You are AgroBot, a world-class AI agricultural consultant. Your mission is to provide expert-level, actionable, and scientific advice to farmers and agricultural enthusiasts.
 
